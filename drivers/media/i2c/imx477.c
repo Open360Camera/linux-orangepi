@@ -23,13 +23,15 @@
 #include <linux/rk-camera-module.h>
 #include <linux/rk-preisp.h>
 
-static int dpc_enable = 1;
-module_param(dpc_enable, int, 0644);
-MODULE_PARM_DESC(dpc_enable, "Enable on-sensor DPC");
+#define IMX477_DPC_ENABLE_MENU_ID	((V4L2_CID_USER_BASE | 0x1000) + 1)
+#define IMX477_TRIGGER_MODE_MENU_ID	((V4L2_CID_USER_BASE | 0x1000) + 2)
 
-static int trigger_mode;
-module_param(trigger_mode, int, 0644);
-MODULE_PARM_DESC(trigger_mode, "Set vsync trigger mode: 1=source, 2=sink");
+#define IMX477_TRIGGER_MODE_NONE	0
+#define IMX477_TRIGGER_MODE_MASTER	1
+#define IMX477_TRIGGER_MODE_SLAVE	2
+
+#define IMX477_DPC_DISABLED			0
+#define IMX477_DPC_ENABLED			1
 
 #define IMX477_REG_VALUE_08BIT		1
 #define IMX477_REG_VALUE_16BIT		2
@@ -1089,6 +1091,8 @@ struct imx477 {
 	struct v4l2_ctrl *hblank;
 
 	struct v4l2_ctrl *link_freq;
+	struct v4l2_ctrl *trigger_mode;
+	struct v4l2_ctrl *dpc_mode;
 
 	/* Current mode */
 	const struct imx477_mode *mode;
@@ -1394,6 +1398,11 @@ static int imx477_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VBLANK:
 		ret = imx477_set_frame_length(imx477,
 					      imx477->mode->height + ctrl->val);
+		break;
+	case IMX477_DPC_ENABLE_MENU_ID:
+	case IMX477_TRIGGER_MODE_MENU_ID:
+		// TODO: real-time changes?
+		ret = 0;
 		break;
 	default:
 		dev_info(&client->dev,
@@ -2081,13 +2090,13 @@ static int imx477_start_streaming(struct imx477 *imx477)
 	}
 
 	/* Set on-sensor DPC. */
-	imx477_write_reg(imx477, 0x0b05, IMX477_REG_VALUE_08BIT, !!dpc_enable);
-	imx477_write_reg(imx477, 0x0b06, IMX477_REG_VALUE_08BIT, !!dpc_enable);
+	imx477_write_reg(imx477, 0x0b05, IMX477_REG_VALUE_08BIT, (imx477->dpc_mode->val == IMX477_DPC_ENABLED));
+	imx477_write_reg(imx477, 0x0b06, IMX477_REG_VALUE_08BIT, (imx477->dpc_mode->val == IMX477_DPC_ENABLED));
 
 	/* Set vsync trigger mode */
-	if (trigger_mode != 0) {
+	if (imx477->trigger_mode->val != IMX477_TRIGGER_MODE_NONE) {
 		/* trigger_mode == 1 for source, 2 for sink */
-		const u32 val = (trigger_mode == 1) ? 1 : 0;
+		const u32 val = (imx477->trigger_mode->val == IMX477_TRIGGER_MODE_MASTER) ? 1 : 0;
 
 		imx477_write_reg(imx477, IMX477_REG_MC_MODE,
 				 IMX477_REG_VALUE_08BIT, 1);
@@ -2406,6 +2415,52 @@ static const s64 link_freq_menu_items[] = {
 	IMX477_DEFAULT_LINK_FREQ,
 };
 
+static const char * const imx477_trigger_mode_options[] = {
+	"Disabled",
+	"Master",
+	"Slave"
+};
+
+static const s64 imx477_trigger_mode_val[] = {
+	IMX477_TRIGGER_MODE_NONE,
+	IMX477_TRIGGER_MODE_MASTER,
+	IMX477_TRIGGER_MODE_SLAVE,
+};
+
+static const struct v4l2_ctrl_config imx477_trigger_mode_menu = {
+	.ops = &imx477_ctrl_ops,
+	.id = IMX477_TRIGGER_MODE_MENU_ID,
+	.name = "Multi-camera operation mode",
+	.type = V4L2_CTRL_TYPE_MENU,
+	.min = IMX477_TRIGGER_MODE_NONE,
+	.max = ARRAY_SIZE(imx477_trigger_mode_options) - 1,
+	.qmenu=imx477_trigger_mode_options
+};
+
+
+static const char * const imx477_dpc_options[] = {
+	"Disabled",
+	"Enabled"
+};
+
+static const s64 imx477_dpc_val[] = {
+	IMX477_DPC_DISABLED,
+	IMX477_DPC_ENABLED,
+};
+
+
+static const struct v4l2_ctrl_config imx477_dpc_menu = {
+	.ops = &imx477_ctrl_ops,
+	.id = IMX477_DPC_ENABLE_MENU_ID,
+	.name = "Defective pixel correction",
+	.type = V4L2_CTRL_TYPE_MENU,
+	.def = IMX477_DPC_ENABLED,
+	.min = IMX477_DPC_DISABLED,
+	.max = ARRAY_SIZE(imx477_dpc_options) - 1,
+	.qmenu=imx477_dpc_options
+};
+
+
 /* Initialize control handlers */
 static int imx477_init_controls(struct imx477 *imx477)
 {
@@ -2493,6 +2548,11 @@ static int imx477_init_controls(struct imx477 *imx477)
 				  IMX477_TEST_PATTERN_COLOUR_MAX);
 		/* The "Solid color" pattern is white by default */
 	}
+
+	imx477->trigger_mode = v4l2_ctrl_new_custom(ctrl_hdlr,
+			&imx477_trigger_mode_menu, NULL);
+	imx477->dpc_mode = v4l2_ctrl_new_custom(ctrl_hdlr,
+			&imx477_dpc_menu, NULL);
 
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
