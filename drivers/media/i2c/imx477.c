@@ -1649,6 +1649,7 @@ static int imx477_set_fmt(struct v4l2_subdev *sd,
 
 #define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
 #define DST_WIDTH_4048 4048
+#define DST_WIDTH_2016 2016
 
 static int imx477_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
@@ -1662,6 +1663,11 @@ static int imx477_get_selection(struct v4l2_subdev *sd,
 		if (imx477->mode->width == 4056) {
 			sel->r.left = CROP_START(imx477->mode->width, DST_WIDTH_4048);
 			sel->r.width = DST_WIDTH_4048;
+			sel->r.top = CROP_START(imx477->mode->height, imx477->mode->height);
+			sel->r.height = imx477->mode->height;
+		} else if (imx477->mode->width == 2028) {
+			sel->r.left = CROP_START(imx477->mode->width, DST_WIDTH_2016);
+			sel->r.width = DST_WIDTH_2016;
 			sel->r.top = CROP_START(imx477->mode->height, imx477->mode->height);
 			sel->r.height = imx477->mode->height;
 		} else {
