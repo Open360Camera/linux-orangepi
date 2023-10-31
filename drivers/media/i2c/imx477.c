@@ -1103,6 +1103,12 @@ struct imx477 {
 	 */
 	struct mutex mutex;
 
+	/*
+	 * Current framerate may vary for the mode, so we should keep it
+	 * in order to be able to return upon g_frame_interval request
+	 */
+	struct v4l2_fract frameinterval;
+
 	/* Streaming on/off */
 	bool power_on;
 
@@ -1468,11 +1474,10 @@ static int imx477_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct imx477 *imx477 = to_imx477(sd);
-	const struct imx477_mode *mode = imx477->mode;
-       printk(KERN_INFO "imx477: imx477_g_frame_interval\n");
+    printk(KERN_INFO "imx477: imx477_g_frame_interval\n");
 
 	mutex_lock(&imx477->mutex);
-	fi->interval = mode->timeperframe_min;
+	fi->interval = imx477->frameinterval;
 	mutex_unlock(&imx477->mutex);
 
 	return 0;
@@ -1560,7 +1565,8 @@ unsigned int imx477_get_frame_length(const struct imx477_mode *mode,
 	return max_t(unsigned int, frame_length, mode->height);
 }
 
-static void imx477_set_framing_limits(struct imx477 *imx477)
+
+static void imx477_set_framing_limits(struct imx477 *imx477, const struct v4l2_fract *timeperframe)
 {
 	unsigned int frm_length_min, frm_length_default, hblank;
 	const struct imx477_mode *mode = imx477->mode;
@@ -1568,7 +1574,7 @@ static void imx477_set_framing_limits(struct imx477 *imx477)
 
 	frm_length_min = imx477_get_frame_length(mode, &mode->timeperframe_min);
 	frm_length_default =
-		     imx477_get_frame_length(mode, &mode->timeperframe_default);
+		     imx477_get_frame_length(mode, timeperframe);
 
 	/* Default to no long exposure multiplier. */
 	imx477->long_exp_shift = 0;
@@ -1589,7 +1595,41 @@ static void imx477_set_framing_limits(struct imx477 *imx477)
 	 */
 	hblank = mode->line_length_pix - mode->width;
 	__v4l2_ctrl_modify_range(imx477->hblank, hblank, hblank, 1, hblank);
+
+	/*
+	 * Update information about current framerate
+	*/
+	imx477->frameinterval.denominator = timeperframe->denominator; 
+	imx477->frameinterval.numerator = timeperframe->numerator;
 }
+
+
+static int imx477_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct imx477 *imx477 = to_imx477(sd);
+    printk(KERN_INFO "imx477: imx477_s_frame_interval\n");
+
+	if (fi->pad >= NUM_PADS)
+		return -EINVAL;
+
+	mutex_lock(&imx477->mutex);
+	if (fi->pad == IMAGE_PAD) {
+		if(fi->interval.numerator * imx477->mode->timeperframe_min.denominator - 
+		    fi->interval.denominator * imx477->mode->timeperframe_min.numerator < 0) {
+			// FPS cannot exceed maximum limit for current mode
+			return -EINVAL;	
+		 }
+		imx477_set_framing_limits(imx477, &fi->interval);
+	}
+	else {
+		return -EINVAL;
+	}
+	mutex_unlock(&imx477->mutex);
+
+	return 0;
+}
+
 
 static int imx477_set_fmt(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
@@ -1628,7 +1668,7 @@ static int imx477_set_fmt(struct v4l2_subdev *sd,
 		} else {
 			imx477->mode = mode;
 			imx477->fmt_code = fmt->format.code;
-			imx477_set_framing_limits(imx477);
+			imx477_set_framing_limits(imx477, &imx477->mode->timeperframe_default);
 		}
 	} else {
 		if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -2395,6 +2435,7 @@ static const struct v4l2_subdev_core_ops imx477_core_ops = {
 static const struct v4l2_subdev_video_ops imx477_video_ops = {
 	.s_stream = imx477_s_stream,
 	.g_frame_interval = imx477_g_frame_interval,
+	.s_frame_interval = imx477_s_frame_interval
 };
 
 static const struct v4l2_subdev_pad_ops imx477_pad_ops = {
@@ -2579,7 +2620,7 @@ static int imx477_init_controls(struct imx477 *imx477)
 	imx477->sd.ctrl_handler = ctrl_hdlr;
 
 	/* Setup exposure and frame/line length limits. */
-	imx477_set_framing_limits(imx477);
+	imx477_set_framing_limits(imx477, &imx477->mode->timeperframe_default);
 
 	return 0;
 
