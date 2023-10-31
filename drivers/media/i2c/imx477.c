@@ -1613,19 +1613,19 @@ static int imx477_s_frame_interval(struct v4l2_subdev *sd,
 	if (fi->pad >= NUM_PADS)
 		return -EINVAL;
 
-	mutex_lock(&imx477->mutex);
 	if (fi->pad == IMAGE_PAD) {
-		if(fi->interval.numerator * imx477->mode->timeperframe_min.denominator - 
-		    fi->interval.denominator * imx477->mode->timeperframe_min.numerator < 0) {
+		if(fi->interval.numerator * imx477->mode->timeperframe_min.denominator < 
+			fi->interval.denominator * imx477->mode->timeperframe_min.numerator) {
 			// FPS cannot exceed maximum limit for current mode
 			return -EINVAL;	
-		 }
+		}
+		mutex_lock(&imx477->mutex);
 		imx477_set_framing_limits(imx477, &fi->interval);
+		mutex_unlock(&imx477->mutex);
 	}
 	else {
 		return -EINVAL;
 	}
-	mutex_unlock(&imx477->mutex);
 
 	return 0;
 }
