@@ -158,6 +158,9 @@ struct imx477_mode {
 	/* H-timing in pixels */
 	unsigned int line_length_pix;
 
+	/* Bus format, MEDIA_BUS_FMT_* (e.g. SGRBG12_1X12) */
+	unsigned int bus_fmt;
+
 	/* Analog crop rectangle. */
 	struct v4l2_rect crop;
 
@@ -933,6 +936,7 @@ static const struct imx477_mode supported_modes[] = {
 		.width = 4056,
 		.height = 3040,
 		.line_length_pix = 0x5dc0,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.crop = {
 			.left = IMX477_PIXEL_ARRAY_LEFT,
 			.top = IMX477_PIXEL_ARRAY_TOP,
@@ -957,6 +961,7 @@ static const struct imx477_mode supported_modes[] = {
 		.width = 2028,
 		.height = 1520,
 		.line_length_pix = 0x31c4,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.crop = {
 			.left = IMX477_PIXEL_ARRAY_LEFT,
 			.top = IMX477_PIXEL_ARRAY_TOP,
@@ -981,6 +986,7 @@ static const struct imx477_mode supported_modes[] = {
 		.width = 2028,
 		.height = 1080,
 		.line_length_pix = 0x31c4,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.crop = {
 			.left = IMX477_PIXEL_ARRAY_LEFT,
 			.top = IMX477_PIXEL_ARRAY_TOP + 440,
@@ -1223,7 +1229,7 @@ static int imx477_write_regs(struct imx477 *imx477,
 }
 
 /* Get bayer order based on flip setting. */
-static u32 imx477_get_format_code(struct imx477 *imx477, u32 code)
+static unsigned int imx477_get_format_code(struct imx477 *imx477, unsigned int code)
 {
 	unsigned int i;
 	printk(KERN_INFO "imx477: imx477_get_format_code\n");
@@ -1248,7 +1254,7 @@ static void imx477_set_default_format(struct imx477 *imx477)
 	printk(KERN_INFO "imx477: imx477_set_default_format\n");
 	/* Set default mode to max resolution */
 	imx477->mode = &supported_modes[0];
-	imx477->fmt_code = MEDIA_BUS_FMT_SRGGB12_1X12;
+	imx477->fmt_code = imx477->mode->bus_fmt;
 }
 
 static int imx477_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -1266,8 +1272,7 @@ static int imx477_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt for the image pad */
 	try_fmt_img->width = supported_modes[0].width;
 	try_fmt_img->height = supported_modes[0].height;
-	try_fmt_img->code = imx477_get_format_code(imx477,
-						   MEDIA_BUS_FMT_SRGGB12_1X12);
+	try_fmt_img->code = imx477_get_format_code(imx477, MEDIA_BUS_FMT_SRGGB12_1X12);
 	try_fmt_img->field = V4L2_FIELD_NONE;
 
 	/* Initialize try_fmt for the embedded metadata pad */
@@ -2401,7 +2406,7 @@ static int imx477_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-    fie->code = MEDIA_BUS_FMT_SRGGB12_1X12;
+    fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].timeperframe_min;
