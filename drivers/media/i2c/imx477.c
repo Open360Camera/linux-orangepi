@@ -48,10 +48,11 @@
 
 #define IMX477_XCLK_FREQ		24000000
 
-#define IMX477_DEFAULT_LINK_FREQ	450000000
+#define IMX477_LINK_FREQ_450MHZ		450000000
+#define IMX477_LINK_FREQ_640MHZ		640000000
 
-/* Pixel rate is fixed at 840MHz for all the modes */
-#define IMX477_PIXEL_RATE		840000000
+#define IMX477_PIXEL_RATE_840M		840000000
+#define IMX477_PIXEL_RATE_984M		984000000
 
 /* V_TIMING internal */
 #define IMX477_REG_FRAME_LENGTH		0x0340
@@ -157,6 +158,12 @@ struct imx477_mode {
 
 	/* H-timing in pixels */
 	unsigned int line_length_pix;
+
+	/* Current pixel rate */
+	unsigned int pixel_rate;
+
+	/* Link frequency */
+	unsigned int link_freq;
 
 	/* Bus format, MEDIA_BUS_FMT_* (e.g. SGRBG12_1X12) */
 	unsigned int bus_fmt;
@@ -304,7 +311,7 @@ static const struct imx477_reg mode_common_regs[] = {
 	{0x9c47, 0x2d},
 	{0x9c4d, 0x40},
 	{0x9c6b, 0x00},
-	{0x9c71, 0xc8},
+	{0x9c71, 0xfa},
 	{0x9c73, 0x32},
 	{0x9c75, 0x04},
 	{0x9c7d, 0x2d},
@@ -485,8 +492,120 @@ static const struct imx477_reg mode_common_regs[] = {
 	{0x3ff9, 0x01},
 };
 
+/* 12 mpix 30fps */
+static const struct imx477_reg mode_4056x3040_30fps_regs[] = {
+	{0x0342, 0x26},
+	{0x0343, 0xea},
+	{0x0344, 0x00},
+	{0x0345, 0x00},
+	{0x0346, 0x00},
+	{0x0347, 0x00},
+	{0x0348, 0x0f},
+	{0x0349, 0xd7},
+	{0x034a, 0x0b},
+	{0x034b, 0xdf},
+	{0x00e3, 0x00},
+	{0x00e4, 0x00},
+	{0x00fc, 0x0a},
+	{0x00fd, 0x0a},
+	{0x00fe, 0x0a},
+	{0x00ff, 0x0a},
+	{0x0220, 0x00},
+	{0x0221, 0x11},
+	{0x0381, 0x01},
+	{0x0383, 0x01},
+	{0x0385, 0x01},
+	{0x0387, 0x01},
+	{0x0900, 0x00},
+	{0x0901, 0x11},
+	{0x0902, 0x02},
+	{0x3140, 0x02},
+	{0x3c00, 0x00},
+	{0x3c01, 0x03},
+	{0x3c02, 0xa2},
+	{0x3f0d, 0x01},
+	{0x5748, 0x07},
+	{0x5749, 0xff},
+	{0x574a, 0x00},
+	{0x574b, 0x00},
+	{0x7b75, 0x0a},
+	{0x7b76, 0x0c},
+	{0x7b77, 0x07},
+	{0x7b78, 0x06},
+	{0x7b79, 0x3c},
+	{0x7b53, 0x01},
+	{0x9369, 0x5a},
+	{0x936b, 0x55},
+	{0x936d, 0x28},
+	{0x9304, 0x00},
+	{0x9305, 0x00},
+	{0x9e9a, 0x2f},
+	{0x9e9b, 0x2f},
+	{0x9e9c, 0x2f},
+	{0x9e9d, 0x00},
+	{0x9e9e, 0x00},
+	{0x9e9f, 0x00},
+	{0xa2a9, 0x60},
+	{0xa2b7, 0x00},
+	{0x0401, 0x00},
+	{0x0404, 0x00},
+	{0x0405, 0x10},
+	{0x0408, 0x00},
+	{0x0409, 0x00},
+	{0x040a, 0x00},
+	{0x040b, 0x00},
+	{0x040c, 0x0f},
+	{0x040d, 0xd8},
+	{0x040e, 0x0b},
+	{0x040f, 0xe0},
+	{0x034c, 0x0f},
+	{0x034d, 0xd8},
+	{0x034e, 0x0b},
+	{0x034f, 0xe0},
+	{0x0301, 0x05},
+	{0x0303, 0x02},
+	{0x0305, 0x02},
+	{0x0306, 0x00},
+	{0x0307, 0xcd},
+	{0x0309, 0x0a},
+	{0x030b, 0x01},
+	{0x030d, 0x03},
+	{0x030e, 0x01},
+	{0x030f, 0x40},
+	{0x0310, 0x01},
+	{0x0820, 0x07},
+	{0x0821, 0x08},
+	{0x0822, 0x00},
+	{0x0823, 0x00},
+	{0x080a, 0x00},
+	{0x080b, 0x7f},
+	{0x080c, 0x00},
+	{0x080d, 0x4f},
+	{0x080e, 0x00},
+	{0x080f, 0x77},
+	{0x0810, 0x00},
+	{0x0811, 0x5f},
+	{0x0812, 0x00},
+	{0x0813, 0x57},
+	{0x0814, 0x00},
+	{0x0815, 0x4f},
+	{0x0816, 0x01},
+	{0x0817, 0x27},
+	{0x0818, 0x00},
+	{0x0819, 0x3f},
+	{0xe04c, 0x00},
+	{0xe04d, 0x7f},
+	{0xe04e, 0x00},
+	{0xe04f, 0x1f},
+	{0x3e20, 0x01},
+	{0x3e37, 0x00},
+	{0x3f50, 0x00},
+	{0x3f56, 0x00},
+	{0x3f57, 0x56},
+};
+
 /* 12 mpix 10fps */
-static const struct imx477_reg mode_4056x3040_regs[] = {
+static const struct imx477_reg mode_4056x3040_10fps_regs[] = {
 	{0x0342, 0x5d},
 	{0x0343, 0xc0},
 	{0x0344, 0x00},
@@ -931,11 +1050,17 @@ static const struct imx477_reg mode_1332x990_regs[] = {
 
 /* Mode configs */
 static const struct imx477_mode supported_modes[] = {
+	/* 
+	12MPix 10fps mode
+	Originally designed for RPI. 
+	Obsoleted by 30fps mode. 
+	Left here for easy revert.
 	{
-		/* 12MPix 10fps mode */
 		.width = 4056,
 		.height = 3040,
 		.line_length_pix = 0x5dc0,
+		.pixel_rate = IMX477_PIXEL_RATE_840M,
+		.link_freq = IMX477_LINK_FREQ_450MHZ,
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.crop = {
 			.left = IMX477_PIXEL_ARRAY_LEFT,
@@ -952,8 +1077,35 @@ static const struct imx477_mode supported_modes[] = {
 			.denominator = 1000
 		},
 		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mode_4056x3040_regs),
-			.regs = mode_4056x3040_regs,
+			.num_of_regs = ARRAY_SIZE(mode_4056x3040_10fps_regs),
+			.regs = mode_4056x3040_10fps_regs,
+		},
+	},*/
+	{
+		/* 12MPix 30fps mode */
+		.width = 4056,
+		.height = 3040,
+		.line_length_pix = 0x26ea,
+		.pixel_rate = IMX477_PIXEL_RATE_984M,
+		.link_freq = IMX477_LINK_FREQ_640MHZ,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.crop = {
+			.left = IMX477_PIXEL_ARRAY_LEFT,
+			.top = IMX477_PIXEL_ARRAY_TOP,
+			.width = 4056,
+			.height = 3040,
+		},
+		.timeperframe_min = {
+			.numerator = 100,
+			.denominator = 3000
+		},
+		.timeperframe_default = {
+			.numerator = 100,
+			.denominator = 3000
+		},
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_4056x3040_30fps_regs),
+			.regs = mode_4056x3040_30fps_regs,
 		},
 	},
 	{
@@ -961,6 +1113,8 @@ static const struct imx477_mode supported_modes[] = {
 		.width = 2028,
 		.height = 1520,
 		.line_length_pix = 0x31c4,
+		.pixel_rate = IMX477_PIXEL_RATE_840M,
+		.link_freq = IMX477_LINK_FREQ_450MHZ,
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.crop = {
 			.left = IMX477_PIXEL_ARRAY_LEFT,
@@ -986,6 +1140,8 @@ static const struct imx477_mode supported_modes[] = {
 		.width = 2028,
 		.height = 1080,
 		.line_length_pix = 0x31c4,
+		.pixel_rate = IMX477_PIXEL_RATE_840M,
+		.link_freq = IMX477_LINK_FREQ_450MHZ,
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.crop = {
 			.left = IMX477_PIXEL_ARRAY_LEFT,
@@ -1560,7 +1716,7 @@ unsigned int imx477_get_frame_length(const struct imx477_mode *mode,
 {
 	u64 frame_length;
 
-	frame_length = (u64)timeperframe->numerator * IMX477_PIXEL_RATE;
+	frame_length = (u64)timeperframe->numerator * mode->pixel_rate;
 	do_div(frame_length,
 	       (u64)timeperframe->denominator * mode->line_length_pix);
 
@@ -1750,197 +1906,6 @@ static long imx477_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	
 
 	printk(KERN_INFO "imx477: imx477_ioctl cmd=%d\n", cmd);
-
-	switch (cmd) {
-		case RKMODULE_GET_MODULE_INFO:
-			printk("RKMODULE_GET_MODULE_INFO\n");
-			break;
-
-		case RKMODULE_AWB_CFG:
-			printk("RKMODULE_AWB_CFG\n");
-			break;
-
-		case RKMODULE_AF_CFG:
-			printk("RKMODULE_AF_CFG\n");
-			break;
-
-		case RKMODULE_LSC_CFG:
-			printk("RKMODULE_LSC_CFG\n");
-			break;
-
-		case RKMODULE_GET_HDR_CFG:
-			printk("RKMODULE_GET_HDR_CFG\n");
-			break;
-
-		case RKMODULE_SET_HDR_CFG:
-			printk("RKMODULE_SET_HDR_CFG\n");
-			break;
-
-		case RKMODULE_SET_CONVERSION_GAIN:
-			printk("RKMODULE_SET_CONVERSION_GAIN\n");
-			break;
-
-		case RKMODULE_GET_LVDS_CFG:
-			printk("RKMODULE_GET_LVDS_CFG\n");
-			break;
-
-		case RKMODULE_SET_DPCC_CFG:
-			printk("RKMODULE_SET_DPCC_CFG\n");
-			break;
-
-		case RKMODULE_GET_NR_SWITCH_THRESHOLD:
-			printk("RKMODULE_GET_NR_SWITCH_THRESHOLD\n");
-			break;
-
-		case RKMODULE_SET_QUICK_STREAM:
-			printk("RKMODULE_SET_QUICK_STREAM\n");
-			break;
-
-		case RKMODULE_GET_BT656_INTF_TYPE:
-			printk("RKMODULE_GET_BT656_INTF_TYPE\n");
-			break;
-
-		case RKMODULE_GET_VC_FMT_INFO:
-			printk("RKMODULE_GET_VC_FMT_INFO\n");
-			break;
-
-		case RKMODULE_GET_VC_HOTPLUG_INFO:
-			printk("RKMODULE_GET_VC_HOTPLUG_INFO\n");
-			break;
-
-		case RKMODULE_GET_START_STREAM_SEQ:
-			printk("RKMODULE_GET_START_STREAM_SEQ\n");
-			break;
-
-		case RKMODULE_GET_VICAP_RST_INFO:
-			printk("RKMODULE_GET_VICAP_RST_INFO\n");
-			break;
-
-		case RKMODULE_SET_VICAP_RST_INFO:
-			printk("RKMODULE_SET_VICAP_RST_INFO\n");
-			break;
-
-		case RKMODULE_GET_DCG_RATIO:
-			printk("RKMODULE_GET_DCG_RATIO\n");
-			break;
-
-		case RKMODULE_GET_SONY_BRL:
-			printk("RKMODULE_GET_SONY_BRL\n");
-			break;
-
-		case RKMODULE_GET_CHANNEL_INFO:
-			printk("RKMODULE_GET_CHANNEL_INFO\n");
-			break;
-
-		case RKMODULE_GET_SYNC_MODE:
-			printk("RKMODULE_GET_SYNC_MODE\n");
-			break;
-
-		case RKMODULE_SET_SYNC_MODE:
-			printk("RKMODULE_SET_SYNC_MODE\n");
-			break;
-
-		case RKMODULE_SET_MCLK:
-			printk("RKMODULE_SET_MCLK\n");
-			break;
-
-		case RKMODULE_SET_LINK_FREQ:
-			printk("RKMODULE_SET_LINK_FREQ\n");
-			break;
-
-		case RKMODULE_SET_BUS_CONFIG:
-			printk("RKMODULE_SET_BUS_CONFIG\n");
-			break;
-
-		case RKMODULE_GET_BUS_CONFIG:
-			printk("RKMODULE_GET_BUS_CONFIG\n");
-			break;
-
-		case RKMODULE_SET_REGISTER:
-			printk("RKMODULE_SET_REGISTER\n");
-			break;
-
-		case RKMODULE_SYNC_I2CDEV:
-			printk("RKMODULE_SYNC_I2CDEV\n");
-			break;
-
-		case RKMODULE_SYNC_I2CDEV_COMPLETE:
-			printk("RKMODULE_SYNC_I2CDEV_COMPLETE\n");
-			break;
-
-		case RKMODULE_SET_DEV_INFO:
-			printk("RKMODULE_SET_DEV_INFO\n");
-			break;
-
-		case RKMODULE_SET_CSI_DPHY_PARAM:
-			printk("RKMODULE_SET_CSI_DPHY_PARAM\n");
-			break;
-
-		case RKMODULE_GET_CSI_DPHY_PARAM:
-			printk("RKMODULE_GET_CSI_DPHY_PARAM\n");
-			break;
-
-		case RKMODULE_GET_CSI_DSI_INFO:
-			printk("RKMODULE_GET_CSI_DSI_INFO\n");
-			break;
-
-		case RKMODULE_GET_HDMI_MODE:
-			printk("RKMODULE_GET_HDMI_MODE\n");
-			break;
-
-		case RKMODULE_SET_SENSOR_INFOS:
-			printk("RKMODULE_SET_SENSOR_INFOS\n");
-			break;
-
-		case RKMODULE_GET_READOUT_LINE_CNT_PER_LINE:
-			printk("RKMODULE_GET_READOUT_LINE_CNT_PER_LINE\n");
-			break;
-
-		case PREISP_CMD_SET_HDRAE_EXP:
-			printk("PREISP_CMD_SET_HDRAE_EXP\n");
-			break;
-
-		case PREISP_CMD_SAVE_HDRAE_PARAM:
-			printk("PREISP_CMD_SAVE_HDRAE_PARAM\n");
-			break;
-
-		case PREISP_DISP_SET_FRAME_OUTPUT:
-			printk("PREISP_DISP_SET_FRAME_OUTPUT\n");
-			break;
-
-		case PREISP_DISP_SET_FRAME_FORMAT:
-			printk("PREISP_DISP_SET_FRAME_FORMAT\n");
-			break;
-
-		case PREISP_DISP_SET_PRO_TIME:
-			printk("PREISP_DISP_SET_PRO_TIME\n");
-			break;
-
-		case PREISP_DISP_SET_PRO_CURRENT:
-			printk("PREISP_DISP_SET_PRO_CURRENT\n");
-			break;
-
-		case PREISP_DISP_SET_DENOISE:
-			printk("PREISP_DISP_SET_DENOISE\n");
-			break;
-
-		case PREISP_DISP_WRITE_EEPROM:
-			printk("PREISP_DISP_WRITE_EEPROM\n");
-			break;
-
-		case PREISP_DISP_READ_EEPROM:
-			printk("PREISP_DISP_READ_EEPROM\n");
-			break;
-
-		case PREISP_DISP_SET_LED_ON_OFF:
-			printk("PREISP_DISP_SET_LED_ON_OFF\n");
-			break;
-
-		default:
-			printk("UNKNOWN IOCTL CALL\n");
-			break;
-
-	}
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2464,7 +2429,8 @@ static const struct v4l2_subdev_internal_ops imx477_internal_ops = {
 };
 
 static const s64 link_freq_menu_items[] = {
-	IMX477_DEFAULT_LINK_FREQ,
+	IMX477_LINK_FREQ_450MHZ,
+	IMX477_LINK_FREQ_640MHZ,
 };
 
 static const char * const imx477_trigger_mode_options[] = {
@@ -2534,14 +2500,22 @@ static int imx477_init_controls(struct imx477 *imx477)
 						V4L2_CID_LINK_FREQ,
 						ARRAY_SIZE(link_freq_menu_items) - 1, 0, 
 						link_freq_menu_items);
-	v4l2_ctrl_s_ctrl(imx477->link_freq, 0);
+	
+	/* Look for the right index in menu items */
+	for (i = 0; i < ARRAY_SIZE(link_freq_menu_items); i++) {
+		if (imx477->mode->link_freq == link_freq_menu_items[i]) {
+			v4l2_ctrl_s_ctrl(imx477->link_freq, i);
+			break;
+		}
+	}
+	/* Exit if configuration is malformed */
+	if (i == ARRAY_SIZE(link_freq_menu_items))
+		return -1;	
 
 	/* By default, PIXEL_RATE is read only */
 	imx477->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &imx477_ctrl_ops,
-					       V4L2_CID_PIXEL_RATE,
-					       IMX477_PIXEL_RATE,
-					       IMX477_PIXEL_RATE, 1,
-					       IMX477_PIXEL_RATE);
+					       V4L2_CID_PIXEL_RATE, 0, IMX477_PIXEL_RATE_984M, 
+						   1, imx477->mode->pixel_rate);
 
 	/*
 	 * Create the controls here, but mode specific limits are setup
@@ -2674,7 +2648,7 @@ static int imx477_check_hwcfg(struct device *dev)
 	}
 
 	if (false &&
-	    ep_cfg.link_frequencies[0] != IMX477_DEFAULT_LINK_FREQ) {
+	    ep_cfg.link_frequencies[0] != IMX477_LINK_FREQ_640MHZ) {
 		dev_err(dev, "Link frequency not supported: %lld\n",
 			ep_cfg.link_frequencies[0]);
 		goto error_out;
