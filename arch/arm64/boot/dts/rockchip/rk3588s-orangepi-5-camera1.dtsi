@@ -5,11 +5,11 @@
  */
 
 &csi2_dphy0_hw {
-        status = "disabled";
+        status = "okay";
 };
 
 &csi2_dphy0 {
-        status = "disabled";
+        status = "okay";
         ports {
                 #address-cells = <1>;
                 #size-cells = <0>;
@@ -27,6 +27,12 @@
                         mipi_in_ucam1: endpoint@1 {
                                 reg = <1>;
                                 remote-endpoint = <&ov13855_out2>;
+                                data-lanes = <1 2>;
+                        };
+
+                        mipi_in_ucam2: endpoint@2 {
+                                reg = <2>;
+                                remote-endpoint = <&imx678_out>;
                                 data-lanes = <1 2>;
                         };
                 };
@@ -111,10 +117,34 @@
                         };
                 };
         };
+
+        imx678_1: imx678-1@1a {
+                compatible = "sony,imx678";
+                status = "okay";
+                reg = <0x1a>;
+                clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+                clock-names = "xvclk";
+                assigned-clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+                assigned-clock-rates = <72000000>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&mipim0_camera3_clk>;
+                reset-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
+                pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+                rockchip,camera-module-index = <0>;
+                rockchip,camera-module-facing = "back";
+                rockchip,camera-module-name = "IMX678";
+                rockchip,camera-module-lens-name = "default";
+                port {
+                        imx678_out: endpoint {
+                                remote-endpoint = <&mipi_in_ucam2>;
+                                data-lanes = <1 2>;
+                        };
+                };
+        };
 };
 
 &mipi2_csi2 {
-        status = "disabled";
+        status = "okay";
         ports {
                 #address-cells = <1>;
                 #size-cells = <0>;
@@ -140,7 +170,7 @@
 };
 
 &rkcif_mipi_lvds2 {
-        status = "disabled";
+        status = "okay";
         port {
                 cif_mipi_in2: endpoint {
                         remote-endpoint = <&mipi2_csi2_output>;
@@ -149,7 +179,7 @@
 };
 
 &rkcif_mipi_lvds2_sditf {
-        status = "disabled";
+        status = "okay";
         port {
                 mipi2_lvds_sditf: endpoint {
                         remote-endpoint = <&isp0_vir1>;
@@ -158,7 +188,7 @@
 };
 
 &rkisp0_vir1 {
-        status = "disabled";
+        status = "okay";
         port {
                 #address-cells = <1>;
                 #size-cells = <0>;
